@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Table views. Durations are shown as hh:mm (hours can exceed 24, e.g. 171:12 for a month),
+  balances with a sign (+00:32 / -01:10).
+-->
 <Configuration>
   <ViewDefinitions>
 
-    <!-- Default view for daily summary -->
+    <!-- Daily summary (default) -->
     <View>
       <Name>GetWorkTimeDaily</Name>
       <ViewSelectedBy>
@@ -14,25 +18,75 @@
           <TableColumnHeader><Label>Date</Label></TableColumnHeader>
           <TableColumnHeader><Label>Start</Label></TableColumnHeader>
           <TableColumnHeader><Label>End</Label></TableColumnHeader>
-          <TableColumnHeader><Label>UpTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
           <TableColumnHeader><Label>Overall</Label></TableColumnHeader>
         </TableHeaders>
         <TableRowEntries>
           <TableRowEntry>
             <TableColumnItems>
               <TableColumnItem><PropertyName>Day</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>Date</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>Start</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>End</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>UpTime</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>Overall</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.Date.ToString('d')</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.StartTime) { $_.StartTime.ToString('HH:mm') } else { '-' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>
+                  if (-not $_.EndTime) { '-' }
+                  elseif ($_.IsRunning) { 'now' }
+                  elseif ($_.EndTime -eq $_.Date.AddDays(1)) { '24:00' }
+                  elseif ($_.IsInferred) { $_.EndTime.ToString('HH:mm') + '*' }
+                  else { $_.EndTime.ToString('HH:mm') }
+                </ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Overall.TotalHours), $_.Overall.Minutes</ScriptBlock></TableColumnItem>
             </TableColumnItems>
           </TableRowEntry>
         </TableRowEntries>
       </TableControl>
     </View>
 
-    <!-- Default view for sessions (-All) -->
+    <!-- Daily summary with -TargetHours -->
+    <View>
+      <Name>GetWorkTimeDailyTarget</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Daily.Target</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Day</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Date</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Start</Label></TableColumnHeader>
+          <TableColumnHeader><Label>End</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Overall</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Balance</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Total</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Day</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.Date.ToString('d')</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>if ($_.StartTime) { $_.StartTime.ToString('HH:mm') } else { '-' }</ScriptBlock></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>
+                  if (-not $_.EndTime) { '-' }
+                  elseif ($_.IsRunning) { 'now' }
+                  elseif ($_.EndTime -eq $_.Date.AddDays(1)) { '24:00' }
+                  elseif ($_.IsInferred) { $_.EndTime.ToString('HH:mm') + '*' }
+                  else { $_.EndTime.ToString('HH:mm') }
+                </ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Overall.TotalHours), $_.Overall.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$t = $_.Balance; ('+', '-')[[int]($t -lt [TimeSpan]::Zero)] + ('{0:00}:{1:00}' -f [Math]::Floor($t.Duration().TotalHours), $t.Duration().Minutes)</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$t = $_.Total; ('+', '-')[[int]($t -lt [TimeSpan]::Zero)] + ('{0:00}:{1:00}' -f [Math]::Floor($t.Duration().TotalHours), $t.Duration().Minutes)</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <!-- Sessions (-All) -->
     <View>
       <Name>GetWorkTimeSession</Name>
       <ViewSelectedBy>
@@ -45,21 +99,388 @@
           <TableColumnHeader><Label>Session</Label></TableColumnHeader>
           <TableColumnHeader><Label>Start</Label></TableColumnHeader>
           <TableColumnHeader><Label>End</Label></TableColumnHeader>
-          <TableColumnHeader><Label>UpTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Via</Label></TableColumnHeader>
         </TableHeaders>
         <TableRowEntries>
           <TableRowEntry>
             <TableColumnItems>
               <TableColumnItem><PropertyName>Day</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>Date</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.Date.ToString('d')</ScriptBlock></TableColumnItem>
               <TableColumnItem><PropertyName>Session</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>Start</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>End</PropertyName></TableColumnItem>
-              <TableColumnItem><PropertyName>UpTime</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.StartTime.ToString('HH:mm')</ScriptBlock></TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>
+                  if ($_.IsRunning) { 'now' }
+                  elseif ($_.EndTime -eq $_.Date.AddDays(1)) { '24:00' }
+                  elseif ($_.IsInferred) { $_.EndTime.ToString('HH:mm') + '*' }
+                  else { $_.EndTime.ToString('HH:mm') }
+                </ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0} -> {1}' -f $_.StartType, $_.EndType</ScriptBlock></TableColumnItem>
             </TableColumnItems>
           </TableRowEntry>
         </TableRowEntries>
       </TableControl>
+    </View>
+
+    <!-- -Summary Week / Month -->
+    <View>
+      <Name>GetWorkTimeSummaryWeek</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Summary.Week</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Week</Label></TableColumnHeader>
+          <TableColumnHeader><Label>From</Label></TableColumnHeader>
+          <TableColumnHeader><Label>To</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Days</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Average</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Week</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.From.ToString('d')</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.To.ToString('d')</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>Days</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Average.TotalHours), $_.Average.Minutes</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>GetWorkTimeSummaryWeekTarget</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Summary.Week.Target</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Week</Label></TableColumnHeader>
+          <TableColumnHeader><Label>From</Label></TableColumnHeader>
+          <TableColumnHeader><Label>To</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Days</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Average</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Target</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Balance</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Week</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.From.ToString('d')</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.To.ToString('d')</ScriptBlock></TableColumnItem>
+              <TableColumnItem><PropertyName>Days</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Average.TotalHours), $_.Average.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Target.TotalHours), $_.Target.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$t = $_.Balance; ('+', '-')[[int]($t -lt [TimeSpan]::Zero)] + ('{0:00}:{1:00}' -f [Math]::Floor($t.Duration().TotalHours), $t.Duration().Minutes)</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>GetWorkTimeSummaryMonth</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Summary.Month</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Month</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Days</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Average</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Month</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Days</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Average.TotalHours), $_.Average.Minutes</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>GetWorkTimeSummaryMonthTarget</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Summary.Month.Target</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Month</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Days</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Average</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Target</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Balance</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Month</PropertyName></TableColumnItem>
+              <TableColumnItem><PropertyName>Days</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Average.TotalHours), $_.Average.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.Target.TotalHours), $_.Target.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$t = $_.Balance; ('+', '-')[[int]($t -lt [TimeSpan]::Zero)] + ('{0:00}:{1:00}' -f [Math]::Floor($t.Duration().TotalHours), $t.Duration().Minutes)</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <!--
+      Charts (Format-Table -View Chart). A view only sees its own row, so the bars have a fixed
+      scale per view: day 1 # = 15 min, week 1 # = 1 h, month 1 # = 4 h.
+    -->
+    <View>
+      <Name>Chart</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Daily</TypeName>
+        <TypeName>GetWorkTime.Daily.Target</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Day</Label></TableColumnHeader>
+          <TableColumnHeader><Label>Date</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>1 # = 15 min</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Day</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>$_.Date.ToString('d')</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'#' * [Math]::Round($_.WorkTime.TotalMinutes / 15)</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>Chart</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Summary.Week</TypeName>
+        <TypeName>GetWorkTime.Summary.Week.Target</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Week</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>1 # = 1 h</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Week</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'#' * [Math]::Round($_.WorkTime.TotalHours)</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <View>
+      <Name>Chart</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Summary.Month</TypeName>
+        <TypeName>GetWorkTime.Summary.Month.Target</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader><Label>Month</Label></TableColumnHeader>
+          <TableColumnHeader><Label>WorkTime</Label></TableColumnHeader>
+          <TableColumnHeader><Label>1 # = 4 h</Label></TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem><PropertyName>Month</PropertyName></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'{0:00}:{1:00}' -f [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes</ScriptBlock></TableColumnItem>
+              <TableColumnItem><ScriptBlock>'#' * [Math]::Round($_.WorkTime.TotalHours / 4)</ScriptBlock></TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+
+    <!--
+      Measure-WorkTime. $f formats a TimeSpan as hh:mm (hours can exceed 24), $s with a sign.
+    -->
+    <View>
+      <Name>GetWorkTimeStatistics</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Statistics</TypeName>
+      </ViewSelectedBy>
+      <ListControl>
+        <ListEntries>
+          <ListEntry>
+            <ListItems>
+              <ListItem>
+                <Label>Period</Label>
+                <ScriptBlock>$n = @(); if ($_.WeekendsExcluded) { $n += 'weekends not included' }; if ($_.TodayExcluded) { $n += 'today not included, still running' }; '{0} - {1}, {2} day{3} worked{4}' -f $_.From.ToString('d'), $_.To.ToString('d'), $_.Days, $(if ($_.Days -ne 1) { 's' }), $(if ($n) { ' (' + ($n -join '; ') + ')' })</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Work time</Label>
+                <ScriptBlock>$f = { param($t) '{0:00}:{1:00}' -f [Math]::Floor($t.TotalHours), $t.Minutes }; '{0} total, {1} average, {2} median' -f (&amp; $f $_.TotalWorkTime), (&amp; $f $_.AverageWorkTime), (&amp; $f $_.MedianWorkTime)</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Longest day</Label>
+                <ScriptBlock>'{0:00}:{1:00}  {2} {3}' -f [Math]::Floor($_.LongestDay.TotalHours), $_.LongestDay.Minutes, $_.LongestDayDate.ToString('ddd'), $_.LongestDayDate.ToString('d')</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Shortest day</Label>
+                <ScriptBlock>'{0:00}:{1:00}  {2} {3}' -f [Math]::Floor($_.ShortestDay.TotalHours), $_.ShortestDay.Minutes, $_.ShortestDayDate.ToString('ddd'), $_.ShortestDayDate.ToString('d')</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Start</Label>
+                <ScriptBlock>if ($null -eq $_.AverageStart) { '-' } else { '{0:hh\:mm} average, earliest {1:hh\:mm} ({2} {3})' -f $_.AverageStart, $_.EarliestStart, $_.EarliestStartDate.ToString('ddd'), $_.EarliestStartDate.ToString('d') }</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>End</Label>
+                <ScriptBlock>if ($null -eq $_.AverageEnd) { '-' } else { '{0:hh\:mm} average, latest {1:hh\:mm} ({2} {3})' -f $_.AverageEnd, $_.LatestEnd, $_.LatestEndDate.ToString('ddd'), $_.LatestEndDate.ToString('d') }</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Breaks</Label>
+                <ScriptBlock>'{0:00}:{1:00} average per day' -f [Math]::Floor($_.AverageBreaks.TotalHours), $_.AverageBreaks.Minutes</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Long days</Label>
+                <ScriptBlock>'{0} over {1} h' -f $_.LongDays, $_.LongDayHours</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Weekend days</Label>
+                <ScriptBlock>$_.WeekendDays</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Short rest</Label>
+                <ScriptBlock>'{0} time{1} under {2} h between two working days' -f $_.ShortRests, $(if ($_.ShortRests -ne 1) { 's' }), $_.MinRestHours</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Per weekday</Label>
+                <ScriptBlock>($_.ByWeekday | ForEach-Object { '{0} {1:00}:{2:00}' -f [cultureinfo]::CurrentCulture.DateTimeFormat.GetAbbreviatedDayName($_.DayOfWeek), [Math]::Floor($_.AverageWorkTime.TotalHours), $_.AverageWorkTime.Minutes }) -join ' | '</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Target</Label>
+                <ItemSelectionCondition><ScriptBlock>$null -ne $_.TotalBalance</ScriptBlock></ItemSelectionCondition>
+                <ScriptBlock>$t = $_.TotalBalance; '{0}{1:00}:{2:00} balance, {3} days over, {4} under target' -f ('+', '-')[[int]($t -lt [TimeSpan]::Zero)], [Math]::Floor($t.Duration().TotalHours), $t.Duration().Minutes, $_.DaysOverTarget, $_.DaysUnderTarget</ScriptBlock>
+              </ListItem>
+            </ListItems>
+          </ListEntry>
+        </ListEntries>
+      </ListControl>
+    </View>
+
+    <View>
+      <Name>GetWorkTimeStatisticsDetailed</Name>
+      <ViewSelectedBy>
+        <TypeName>GetWorkTime.Statistics.Detailed</TypeName>
+      </ViewSelectedBy>
+      <ListControl>
+        <ListEntries>
+          <ListEntry>
+            <ListItems>
+              <ListItem>
+                <Label>Period</Label>
+                <ScriptBlock>$n = @(); if ($_.WeekendsExcluded) { $n += 'weekends not included' }; if ($_.TodayExcluded) { $n += 'today not included, still running' }; '{0} - {1}, {2} day{3} worked{4}' -f $_.From.ToString('d'), $_.To.ToString('d'), $_.Days, $(if ($_.Days -ne 1) { 's' }), $(if ($n) { ' (' + ($n -join '; ') + ')' })</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Work time</Label>
+                <ScriptBlock>$f = { param($t) '{0:00}:{1:00}' -f [Math]::Floor($t.TotalHours), $t.Minutes }; '{0} total, {1} average, {2} median' -f (&amp; $f $_.TotalWorkTime), (&amp; $f $_.AverageWorkTime), (&amp; $f $_.MedianWorkTime)</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Spread</Label>
+                <ScriptBlock>'+/- {0:00}:{1:00} (standard deviation of the day lengths)' -f [Math]::Floor($_.WorkTimeSpread.TotalHours), $_.WorkTimeSpread.Minutes</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Longest day</Label>
+                <ScriptBlock>'{0:00}:{1:00}  {2} {3}' -f [Math]::Floor($_.LongestDay.TotalHours), $_.LongestDay.Minutes, $_.LongestDayDate.ToString('ddd'), $_.LongestDayDate.ToString('d')</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Shortest day</Label>
+                <ScriptBlock>'{0:00}:{1:00}  {2} {3}' -f [Math]::Floor($_.ShortestDay.TotalHours), $_.ShortestDay.Minutes, $_.ShortestDayDate.ToString('ddd'), $_.ShortestDayDate.ToString('d')</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Start</Label>
+                <ScriptBlock>if ($null -eq $_.AverageStart) { '-' } else { '{0:hh\:mm} average, earliest {1:hh\:mm} ({2} {3})' -f $_.AverageStart, $_.EarliestStart, $_.EarliestStartDate.ToString('ddd'), $_.EarliestStartDate.ToString('d') }</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Common start</Label>
+                <ScriptBlock>if ($null -eq $_.CommonStartHour) { '-' } else { '{0:00}:00-{1:00}:00' -f $_.CommonStartHour, ($_.CommonStartHour + 1) }</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>End</Label>
+                <ScriptBlock>if ($null -eq $_.AverageEnd) { '-' } else { '{0:hh\:mm} average, latest {1:hh\:mm} ({2} {3})' -f $_.AverageEnd, $_.LatestEnd, $_.LatestEndDate.ToString('ddd'), $_.LatestEndDate.ToString('d') }</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Late evenings</Label>
+                <ScriptBlock>'{0} day{1} ending after 20:00' -f $_.LateEvenings, $(if ($_.LateEvenings -ne 1) { 's' })</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Breaks</Label>
+                <ScriptBlock>'{0:00}:{1:00} average per day' -f [Math]::Floor($_.AverageBreaks.TotalHours), $_.AverageBreaks.Minutes</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Long days</Label>
+                <ScriptBlock>'{0} over {1} h' -f $_.LongDays, $_.LongDayHours</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Long weeks</Label>
+                <ScriptBlock>$w = @($_.LongWeeks | ForEach-Object { '{0} {1:00}:{2:00}' -f $_.Week, [Math]::Floor($_.WorkTime.TotalHours), $_.WorkTime.Minutes }); '{0} with {1} h or more{2}' -f $w.Count, $_.LongWeekHours, $(if ($w.Count) { ' (' + ($w -join ', ') + ')' })</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Weekend days</Label>
+                <ScriptBlock>$_.WeekendDays</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Short rest</Label>
+                <ScriptBlock>'{0} time{1} under {2} h between two working days' -f $_.ShortRests, $(if ($_.ShortRests -ne 1) { 's' }), $_.MinRestHours</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Longest run</Label>
+                <ScriptBlock>'{0} day{1} in a row' -f $_.LongestStreak, $(if ($_.LongestStreak -ne 1) { 's' })</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Per weekday</Label>
+                <ScriptBlock>($_.ByWeekday | ForEach-Object { '{0} {1:00}:{2:00}' -f [cultureinfo]::CurrentCulture.DateTimeFormat.GetAbbreviatedDayName($_.DayOfWeek), [Math]::Floor($_.AverageWorkTime.TotalHours), $_.AverageWorkTime.Minutes }) -join ' | '</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Trend</Label>
+                <ScriptBlock>if ($null -eq $_.Trend) { '-' } else { $t = $_.Trend; '{0}{1:00}:{2:00} per day (second half of the period vs. first half)' -f ('+', '-')[[int]($t -lt [TimeSpan]::Zero)], [Math]::Floor($t.Duration().TotalHours), $t.Duration().Minutes }</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Busiest week</Label>
+                <ScriptBlock>'{0}, {1:00}:{2:00}' -f $_.BusiestWeek, [Math]::Floor($_.BusiestWeekWorkTime.TotalHours), $_.BusiestWeekWorkTime.Minutes</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Day ends</Label>
+                <ScriptBlock>if (-not $_.DayEnds) { '-' } else { ($_.DayEnds | ForEach-Object { '{0} {1} %' -f $_.EndType, $_.Percent }) -join ', ' }</ScriptBlock>
+              </ListItem>
+              <ListItem>
+                <Label>Target</Label>
+                <ItemSelectionCondition><ScriptBlock>$null -ne $_.TotalBalance</ScriptBlock></ItemSelectionCondition>
+                <ScriptBlock>$t = $_.TotalBalance; '{0}{1:00}:{2:00} balance, {3} days over, {4} under target' -f ('+', '-')[[int]($t -lt [TimeSpan]::Zero)], [Math]::Floor($t.Duration().TotalHours), $t.Duration().Minutes, $_.DaysOverTarget, $_.DaysUnderTarget</ScriptBlock>
+              </ListItem>
+            </ListItems>
+          </ListEntry>
+        </ListEntries>
+      </ListControl>
     </View>
 
   </ViewDefinitions>
